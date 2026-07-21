@@ -2,7 +2,10 @@ const express = require('express');
 require('dotenv').config();
 const app = express();
 const connectDB = require("./config/db");
+const Weather = require("./models/Weather");
+const Weather1= require("./models/Weather");
 //console.log(process.env.NAME);
+connectDB();
 
 
 app.use(express.json());
@@ -52,14 +55,29 @@ app.use((err,req,res,next) => {
 });
 
 
-app.post("/weather", (req, res) => {
-    if (!req.body.city) {
-        res.status(400).send("City is required");
+app.post("/weather", async (req,res) => {
+    try{
+    if(!req.body.city){
+        return res.status(400).send("City is required");
     }
-
-    res.send(`You searched for ${req.body.city}`);
+    const city = req.body.city.trim().toLowerCase();
+    const weather = await Weather1.create({ city });
+        return res.status(201).send(weather);
+    } catch (error) {
+        console.error(error);
+        if (error.code === 11000) {
+        return res.status(409).send("City already exists");
+    }
+     res.status(500).send("Server Error");
+    }
 });
 
-app.listen(3000, () => {
+async function startServer(){
+    await connectDB();
+
+    app.listen(3000, () => {
     console.log("Server is running on port 3000");
 }); 
+}
+
+startServer();
