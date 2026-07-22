@@ -72,6 +72,19 @@ app.post("/weather", async (req,res) => {
     }
 });
 
+app.get("/weather", async (req,res) => {
+    try{
+        const weathers = await Weather1.find();
+        return res.status(200).send(weathers);
+    } catch(error){
+        console.error(error);
+        return res.status(500).send("Server Error");
+    }
+    });
+
+
+
+
 async function startServer(){
     await connectDB();
 
