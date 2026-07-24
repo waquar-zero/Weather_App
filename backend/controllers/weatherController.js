@@ -1,94 +1,36 @@
-const Weather = require("../models/Weather");   
+const SearchHistory = require("../models/SearchHistory");
 
-async function createWeather(req, res) {
-        try{
-        if(!req.body.city){
-            return res.status(400).send("City is required");
-        }
-        const city = req.body.city.trim().toLowerCase();
-        const weather = await Weather.create({ city });
-            return res.status(201).send(weather);
-        } catch (error) {
-            console.error(error);
-            if (error.code === 11000) {
-            return res.status(409).send("City already exists");
-        }
-        return res.status(500).send("Server Error");
-        }
-}
-
-async function getAllWeather(req,res) {
-    try{
-        const weatherData = await Weather.find();
-        return res.status(200).send(weatherData);
-    } catch(error){
-        console.error(error);
-        return res.status(500).send("Server Error");
-    }
-}
-
-async function getWeather(req, res){
+async function getWeatherFromAPI(req, res) {
     try{
         const city = req.params.city.trim().toLowerCase();
-        const WeatherData = await Weather.findOne({ city });
-        if(!WeatherData){
-            return res.status(404).send("City not found");
-        }
-        return res.status(200).send(WeatherData);
-    } catch(error){
-        console.error(error);
-        return res.status(500).send("Server Error");
-    }
+        const apiKey = process.env.WEATHER_API_KEY;
+        const url = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${city}`;
+        const weatherResponse = await fetch(url);
+        if(!weatherResponse.ok){
+            const errorData = await weatherResponse.json();
 
-}
-
-async function updateWeather(req, res) {
-    try{
-        if(!req.body.city){
-            return res.status(400).send("City is required");
+            return res.status(weatherResponse.status).json({
+                error: errorData.error.message
+            });
         }
-        const oldCity = req.params.city.trim().toLowerCase();
-        const newCity = req.body.city.trim().toLowerCase(); 
-        if(oldCity !== newCity){
-            const existing = await Weather.findOne({ city: newCity }); 
-            if(existing){ 
-            return res.status(409).send("City already exists");
+        const weatherData = await weatherResponse.json();
+        try {
+                await SearchHistory.create({ city });
+            } catch (error) {
+                console.error("Error saving search history:", error.message);
             }
-        }
-        const updatedWeather = await Weather.findOneAndUpdate(
-            { city: oldCity },
-            { city: newCity },
-            { new: true });
-            if(!updatedWeather){
-                return res.status(404).send("City not found");
-            }
-            return res.status(200).send(updatedWeather);
-        } catch(error){
-            console.error(error);   
-            return res.status(500).send("Server Error");
-        }
 
-}
-
-async function deleteWeather(req,res){
-    try{
-        const city = req.params.city.trim().toLowerCase();
-        const deletedWeather = await Weather.findOneAndDelete({ city });
-        if(!deletedWeather){
-            return res.status(404).send("City not found");
-        }
-        return res.status(200).send(deletedWeather);
+            return res.json(weatherData);
     } catch(error){
-        console.error(error);
-        return res.status(500).send("Server Error");
-    }
-
+        console.error("Error fetching weather data: ", error.message);
+        return res.status(500).json({
+            error: "Internal server error"
+        }); 
+    };
 }
 
 module.exports = {
-    createWeather,
-    getAllWeather,
-    getWeather,
-    updateWeather,
-    deleteWeather
-};
+    getWeatherFromAPI,
+}
+
+
